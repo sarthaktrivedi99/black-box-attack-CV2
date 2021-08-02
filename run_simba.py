@@ -15,7 +15,6 @@ parser.add_argument('--batch_size', type=int, default=1, help='batch size for pa
 parser.add_argument('--num_iters', type=int, default=10000, help='maximum number of iterations')
 parser.add_argument('--log_every', type=int, default=10, help='log every n iterations')
 parser.add_argument('--epsilon', type=float, default=0.2, help='step size per iteration')
-parser.add_argument('--order', type=str, default='rand', help='(random) order of coordinate selection')
 parser.add_argument('--save_suffix', type=str, default='', help='suffix appended to save file')
 args = parser.parse_args()
 
@@ -39,8 +38,17 @@ else:
 
 model = models[args.model]
 input_shape = model.input.shape[1]
-x,y = Image_Loader(os.path.join(args.data_root, 'val'),args.batch_size,input_shape).__next__()
+perturbation = np.zeros(shape=(input_shape,input_shape,3))
+loader = Image_Loader(os.path.join(args.data_root, 'val'),args.batch_size,input_shape)
 sim = SimBA(model,preprocess_input,decode_predictions)
-petrubation = sim.simba_single(x,y,iters=1000)
-plt.imshow(np.clip(x+petrubation,0,255)/255)
-plt.show()
+succ_log = np.zeros(shape=len(loader),dtype=np.bool)
+query_log = np.zeros(shape=len(loader),dtype=np.float)
+l2_norm_log = np.zeros(shape=len(loader),dtype=np.float)
+for i in range(len(loader)):
+    x,y = next(loader)
+    x_,succ,query,l2_norm = sim.simba_single(x,y,iters=args.num_runs,epsilon=args.epsilon,attack_mode='dct',log_every=args.log_every)
+    print(succ,query,l2_norm)
+    succ_log[i],query_log[i],l2_norm_log[i] = succ, query, l2_norm
+    plt.imshow(x_/255)
+    plt.draw()
+    plt.pause(0.1)
